@@ -2,7 +2,7 @@ import polars as pl
 import pandas as pd
 from scrapers import arxiv_scraper, pubmed_scraper
 from normalization import text_normalizer
-from normalization import hybrid_text_normalizer
+from representation import text_representation
 
 # ***********************************************************************
 #                     --- 1. RECOLECCIÓN DE LOS ARTÍCULOS ---
@@ -69,17 +69,34 @@ def build_arxiv_normalizated_corpus():
 
     # 2. Aplicar la normalización a las columnas deseadas
     print("Normalizando la columna 'Title'...")
-    normalized_df['Title'] = df['Title'].apply(hybrid_text_normalizer.normalize_text)
+    normalized_df['Title'] = df['Title'].apply(text_normalizer.normalize_text)
 
     print("Normalizando la columna 'Abstract'...")
-    normalized_df['Abstract'] = df['Abstract'].astype(str).apply(hybrid_text_normalizer.normalize_text)
+    normalized_df['Abstract'] = df['Abstract'].astype(str).apply(text_normalizer.normalize_text)
 
     # 3. Guardar el corpus normalizado
-    output_csv_path = 'normalizated_corpus/arxiv_normalized_corpus_hy.csv'
+    output_csv_path = 'normalizated_corpus/arxiv_normalized_corpus.csv'
     print(f"Guardando el corpus normalizado en '{output_csv_path}'...")
     normalized_df.to_csv(output_csv_path, index=False, encoding='utf-8')
 
     print("¡Proceso completado con éxito!")
+
+# ***********************************************************************
+#              --- 3. REPRESENTACIÓN VECTORIAL DEL TEXTO ---
+# ***********************************************************************
+def build_text_representation_module():
+    """
+    Orquesta la creación de representaciones vectoriales para todos los corpus.
+    """
+    print("\n[ INICIANDO REPRESENTACIÓN DE TEXTO ]")
+    
+    # Lista de los corpus que quieres procesar
+    corpus_list = ['arxiv', 'pubmed']
+    
+    for corpus_name in corpus_list:
+        text_representation.build_vector_representations(corpus_name)
+        
+    print("\n[ MÓDULO COMPLETADO ]")
 
 def build_pubmed_normalizated_corpus():
     """ Normaliza el corpus crudo de ArXiv y PubMed """
@@ -97,13 +114,13 @@ def build_pubmed_normalizated_corpus():
 
     # 2. Aplicar la normalización a las columnas deseadas
     print("Normalizando la columna 'Title'...")
-    normalized_df['Title'] = df['Title'].apply(hybrid_text_normalizer.normalize_text)
+    normalized_df['Title'] = df['Title'].apply(text_normalizer.normalize_text)
 
     print("Normalizando la columna 'Abstract'...")
-    normalized_df['Abstract'] = df['Abstract'].astype(str).apply(hybrid_text_normalizer.normalize_text)
+    normalized_df['Abstract'] = df['Abstract'].astype(str).apply(text_normalizer.normalize_text)
 
     # 3. Guardar el corpus normalizado
-    output_csv_path = 'normalizated_corpus/pubmed_normalized_corpus_hy.csv'
+    output_csv_path = 'normalizated_corpus/pubmed_normalized_corpus.csv'
     print(f"Guardando el corpus normalizado en '{output_csv_path}'...")
     normalized_df.to_csv(output_csv_path, index=False, encoding='utf-8')
 
@@ -112,9 +129,12 @@ def build_pubmed_normalizated_corpus():
 if __name__ == "__main__":
     
     """ Construcción de los corpus crudos"""
-    # build_arxiv_corpus()
-    build_pubmed_corpus() 
+    #build_arxiv_corpus()
+    #build_pubmed_corpus() 
 
     """ Construcción de los corpus normalizados"""
-    build_arxiv_normalizated_corpus()
-    build_pubmed_normalizated_corpus()
+    #build_arxiv_normalizated_corpus()
+    #build_pubmed_normalizated_corpus()
+
+    """ Representación del Texto """
+    build_text_representation_module()

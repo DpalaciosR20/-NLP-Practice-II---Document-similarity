@@ -1,42 +1,60 @@
 import spacy
+import re
 
-# Cargar el modelo de lenguaje solo una vez cuando se importa el módulo.
-print("Cargando modelo de spaCy (lg)...")
-nlp = spacy.load("en_core_web_lg")
-print("Modelo cargado.")
+print("Cargando modelo de spaCy (sm)...")
+nlp = spacy.load("en_core_web_sm")
+
+# --- INICIO DE LA PERSONALIZACIÓN DEL TOKENIZADOR ---
+
+# 1. Obtener las reglas de infijo por defecto de spaCy.
+#    Los "infijos" son los caracteres que spaCy usa para dividir una palabra por la mitad.
+infix_re = re.compile(r'''[.\,\?\!\:\;\...\‘\’\`\“\”\"\'~]''')
+
+# 2. Modificar el tokenizador para que NO divida las palabras con guiones.
+#    Le decimos que trate las palabras alfanuméricas que incluyen guiones como un solo token.
+nlp.tokenizer.infix_finditer = infix_re.finditer
+
 
 def normalize_text(text: str) -> str:
     """
-    Normaliza un texto aplicando tokenización, eliminación de stop words 
-    por categoría gramatical específica y lematización.
-    
-    Args:
-        text (str): El texto a normalizar.
-        
-    Returns:
-        str: El texto normalizado como una cadena de lemas.
+    Normaliza un texto conservando guiones en palabras y puntuación clave.
+    Elimina solo las stop words por categoría gramatical.
     """
-    # Casos donde el texto no sea una cadena (Doble filtro)
     if not isinstance(text, str):
         return ""
 
-    # Procesar el texto con el pipeline de spaCy
     doc = nlp(text)
     
-    # DET: Artículos (a, an, the)
-    # ADP: Preposiciones (in, to, on, with)
-    # CCONJ: Conjunciones coordinantes (and, but, or)
-    # SCONJ: Conjunciones subordinantes (if, while, that)
-    # PRON: Pronombres (I, you, he, she, it)
-    pos_to_remove = ['DET', 'ADP', 'CCONJ', 'SCONJ', 'PRON']
+    pos_to_remove = ['DET', 'ADP', 'CCCONJ', 'SCONJ', 'PRON']
     
-    # Lista para guardar los lemas filtrados
-    lemmas = []
+    processed_tokens = []
     
     for token in doc:
-        if (token.pos_ not in pos_to_remove and
-            not token.is_punct and
-            not token.is_space):
-            lemmas.append(token.lemma_.lower())
+        # Ignorar solo las categorías gramaticales no deseadas y los espacios.
+        if token.pos_ in pos_to_remove or token.is_space:
+            continue
+        
+        # Para todo lo demás (palabras, números, puntuación), añadimos el lema en minúsculas.
+        # Para la puntuación, el lema es el propio carácter.
+        processed_tokens.append(token.lemma_.lower())
             
-    return " ".join(lemmas)
+    # Finalmente, unimos los tokens para formar la cadena de texto normalizada.
+    return " ".join(processed_tokens)
+
+# --- EJEMPLO DE DIAGNÓSTICO (puedes ejecutar este archivo para probar) ---
+if __name__ == '__main__':
+    test_text_1 = "RPG: A Repository Planning Graph for Unified and Scalable Codebase Generation"
+    test_text_2 = "This is a state-of-the-art method."
+
+    print("\n--- ANTES DE LA CORRECCIÓN (TOKENIZADOR POR DEFECTO) ---")
+    # Carga una instancia limpia para comparar
+    nlp_default = spacy.load("en_core_web_sm")
+    print([token.text for token in nlp_default(test_text_2)])
+    
+    print("\n--- DESPUÉS DE LA CORRECCIÓN (TOKENIZADOR PERSONALIZADO) ---")
+    print("Texto 1:", [token.text for token in nlp(test_text_1)])
+    print("Texto 2:", [token.text for token in nlp(test_text_2)])
+
+    print("\n--- RESULTADO DE LA NORMALIZACIÓN ---")
+    print("Normalizado 1:", normalize_text(test_text_1))
+    print("Normalizado 2:", normalize_text(test_text_2))
