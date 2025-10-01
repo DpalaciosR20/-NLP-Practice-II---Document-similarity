@@ -94,5 +94,5 @@ if __name__ == "__main__":
     
     # Puedes elegir cuál construir o construir ambos
     #build_arxiv_corpus()
-    # build_pubmed_corpus() # Descomentar cuando el scraper de PubMed esté listo
-    build_corpus_normalization()
+    build_pubmed_corpus() # Descomentar cuando el scraper de PubMed esté listo
+    # build_corpus_normalization()
