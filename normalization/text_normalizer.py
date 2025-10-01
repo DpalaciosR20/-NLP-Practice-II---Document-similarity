@@ -1,8 +1,8 @@
 import spacy
 
 # Cargar el modelo de lenguaje solo una vez cuando se importa el módulo.
-print("Cargando modelo de spaCy...")
-nlp = spacy.load("en_core_web_sm")
+print("Cargando modelo de spaCy (lg)...")
+nlp = spacy.load("en_core_web_lg")
 print("Modelo cargado.")
 
 def normalize_text(text: str) -> str:
