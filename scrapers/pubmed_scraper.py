@@ -19,14 +19,23 @@ PUBMED_TRENDING_URL = "https://pubmed.ncbi.nlm.nih.gov/trending/?size=200"
 def formatear_fecha(fecha: str):
     mes_num = {"Jan": "01", "Feb": "02", "Mar": "03", "Apr": "04", "May": "05", "Jun": "06",
            "Jul": "07", "Aug": "08", "Sep": "09", "Oct": "10", "Nov": "11", "Dec": "12"}
+    seasons_start_dates = {
+        "Spring": "20/03",
+        "Summer": "21/06",
+        "Fall": "22/09",
+        "Winter": "21/12"
+    }
     # Suponiendo que al menos el año está (YYYY MM DD, YYYY MM, YYYY)
     # Formato original: YYYY MM DD
     print("fecha_org: "+fecha)
     fecha_separada = fecha.split(" ")
     año = fecha_separada[0]
     mes = (fecha_separada[1].split("-")[-1] if fecha_separada[1].split("-") else fecha_separada[1]) if len(fecha_separada) >= 2 else "Jan"
-    dia = fecha_separada[2] if len(fecha_separada) == 3 else "01"
-    fecha_formateada=dia+"/"+mes_num[mes]+"/"+año
+    if mes in ["Spring", "Summer", "Fall", "Winter"]:
+        fecha_formateada=seasons_start_dates[mes]+"/"+año
+    else:
+        dia = (fecha_separada[2] if len(fecha_separada) == 3 else "1").zfill(2)
+        fecha_formateada=dia+"/"+mes_num[mes]+"/"+año
     print("fecha-formt: "+fecha_formateada)
     return fecha_formateada    
    
@@ -110,6 +119,7 @@ def scrape_pubmed(num_articles: int = 300) -> list:
                     page.locator('button[data-ga-action="show_more"]').click()
                 
                 for i in range(200):
+                    time.sleep(1)
                     if len(all_articles_data) < num_articles:
                         article = articles.nth(viewed_articles)
                         viewed_articles+=1
