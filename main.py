@@ -130,11 +130,11 @@ if __name__ == "__main__":
     
     """ Construcción de los corpus crudos"""
     # build_arxiv_corpus()
-    build_pubmed_corpus() 
+    #build_pubmed_corpus() 
 
     """ Construcción de los corpus normalizados"""
     #build_arxiv_normalizated_corpus()
     #build_pubmed_normalizated_corpus()
 
     """ Representación del Texto """
-    # build_text_representation_module()
+    build_text_representation_module()
