@@ -1,12 +1,15 @@
-# app.py (versión con la lógica de búsqueda corregida)
+# app.py (versión con lectura manual de CSV a prueba de balas)
 
-import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+import customtkinter as ctk
+from tkinter import filedialog, messagebox
+import pandas as pd
 import bibtexparser
 import os
+import csv # <--- Importamos el módulo CSV de Python
 
 from similarity_calculator import find_similar_documents
 
+# ... (El resto de tu código, como parse_ris_file, es idéntico)
 def parse_ris_file(file_path):
     data = {}
     abstract_keys = ["AB", "N1"]
@@ -17,53 +20,107 @@ def parse_ris_file(file_path):
                 data['title'] = line[6:]
             elif any(line.startswith(f"{key}  - ") for key in abstract_keys) and 'abstract' not in data:
                 data['abstract'] = line[6:]
-    if 'title' not in data: data['title'] = '' # Devolver string vacío si no se encuentra
-    if 'abstract' not in data: data['abstract'] = '' # Devolver string vacío si no se encuentra
+    if 'title' not in data: data['title'] = ''
+    if 'abstract' not in data: data['abstract'] = ''
     return [data]
 
+
 class SimilarityApp:
+    # ... (La función __init__ y el resto de la UI son idénticas)
     def __init__(self, root):
         self.root = root
-        self.root.title("Buscador de Artículos Similares")
-        self.root.geometry("800x600")
-        self.bib_data = None
-        self.query_content = tk.StringVar()
-        main_frame = ttk.Frame(self.root, padding="10")
-        main_frame.pack(fill=tk.BOTH, expand=True)
-        options_frame = ttk.LabelFrame(main_frame, text="Configuración de Búsqueda", padding="10")
-        options_frame.pack(fill=tk.X, pady=5)
-        ttk.Label(options_frame, text="Corpus:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
-        self.corpus_var = tk.StringVar(value="arxiv")
-        self.corpus_combo = ttk.Combobox(options_frame, textvariable=self.corpus_var, values=["arxiv", "pubmed"], state="readonly")
-        self.corpus_combo.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
-        ttk.Label(options_frame, text="Contenido Comparativo:").grid(row=0, column=2, padx=5, pady=5, sticky="w")
-        self.content_var = tk.StringVar(value="Abstract")
-        self.content_combo = ttk.Combobox(options_frame, textvariable=self.content_var, values=["Title", "Abstract"], state="readonly")
-        self.content_combo.grid(row=0, column=3, padx=5, pady=5, sticky="ew")
-        self.content_combo.bind("<<ComboboxSelected>>", self.update_query_text)
-        ttk.Label(options_frame, text="Features:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
-        self.feature_var = tk.StringVar(value="unigram")
-        self.feature_combo = ttk.Combobox(options_frame, textvariable=self.feature_var, values=["unigram", "bigram"], state="readonly")
-        self.feature_combo.grid(row=1, column=1, padx=5, pady=5, sticky="ew")
-        ttk.Label(options_frame, text="Representación:").grid(row=1, column=2, padx=5, pady=5, sticky="w")
-        self.vector_var = tk.StringVar(value="tfidf")
-        self.vector_combo = ttk.Combobox(options_frame, textvariable=self.vector_var, values=["freq", "binary", "tfidf"], state="readonly")
-        self.vector_combo.grid(row=1, column=3, padx=5, pady=5, sticky="ew")
-        options_frame.columnconfigure(1, weight=1)
-        options_frame.columnconfigure(3, weight=1)
-        file_frame = ttk.LabelFrame(main_frame, text="Documento de Entrada", padding="10")
-        file_frame.pack(fill=tk.X, pady=5)
-        self.select_file_btn = ttk.Button(file_frame, text="Seleccionar Archivo (.bib o .ris)", command=self.load_file)
-        self.select_file_btn.pack(fill=tk.X)
-        self.query_text_area = tk.Text(file_frame, height=8, wrap="word", state="disabled")
-        self.query_text_area.pack(fill=tk.X, pady=5, expand=True)
-        self.search_btn = ttk.Button(main_frame, text="Buscar Documentos Similares", command=self.run_search, state="disabled")
-        self.search_btn.pack(fill=tk.X, pady=10)
-        results_frame = ttk.LabelFrame(main_frame, text="Resultados (10 más similares)", padding="10")
-        results_frame.pack(fill=tk.BOTH, expand=True, pady=5)
-        self.results_text_area = tk.Text(results_frame, height=15, wrap="word", state="disabled")
-        self.results_text_area.pack(fill=tk.BOTH, expand=True)
+        self.root.title("Buscador de Artículos Similares v2.2")
+        self.root.geometry("900x700")
 
+        ctk.set_appearance_mode("System")
+        ctk.set_default_color_theme("blue")
+
+        self.bib_data = None
+        self.raw_data = self.load_raw_corpus()
+
+        main_frame = ctk.CTkFrame(self.root, corner_radius=10)
+        main_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        top_frame = ctk.CTkFrame(main_frame)
+        top_frame.pack(fill="x", padx=10, pady=10)
+        options_frame = ctk.CTkFrame(top_frame)
+        options_frame.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        ctk.CTkLabel(options_frame, text="Corpus:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        self.corpus_var = ctk.StringVar(value="arxiv")
+        self.corpus_combo = ctk.CTkComboBox(options_frame, variable=self.corpus_var, values=["arxiv", "pubmed"], state="readonly")
+        self.corpus_combo.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        ctk.CTkLabel(options_frame, text="Features:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        self.feature_var = ctk.StringVar(value="unigram")
+        self.feature_combo = ctk.CTkComboBox(options_frame, variable=self.feature_var, values=["unigram", "bigram"], state="readonly")
+        self.feature_combo.grid(row=1, column=1, padx=5, pady=5, sticky="ew")
+        ctk.CTkLabel(options_frame, text="Representación:").grid(row=1, column=2, padx=5, pady=5, sticky="w")
+        self.vector_var = ctk.StringVar(value="tfidf")
+        self.vector_combo = ctk.CTkComboBox(options_frame, variable=self.vector_var, values=["freq", "binary", "tfidf"], state="readonly")
+        self.vector_combo.grid(row=1, column=3, padx=5, pady=5, sticky="ew")
+        options_frame.columnconfigure((1, 3), weight=1)
+        file_frame = ctk.CTkFrame(top_frame)
+        file_frame.pack(side="left", fill="x", expand=True, padx=(5, 0))
+        self.select_file_btn = ctk.CTkButton(file_frame, text="Seleccionar Archivo de Consulta (.bib o .ris)", command=self.load_file)
+        self.select_file_btn.pack(fill="x", padx=10, pady=10)
+        self.query_label = ctk.CTkLabel(file_frame, text="Archivo no cargado.", text_color="gray", wraplength=350, justify="center")
+        self.query_label.pack(fill="x", padx=10, pady=(0, 10))
+        self.search_btn = ctk.CTkButton(main_frame, text="Buscar Documentos Similares", command=self.run_search, state="disabled", height=40)
+        self.search_btn.pack(fill="x", padx=10, pady=5)
+        self.results_title_label = ctk.CTkLabel(main_frame, text="Resultados de la Búsqueda", font=ctk.CTkFont(size=16, weight="bold"))
+        self.results_title_label.pack(fill="x", padx=10, pady=(10, 0))
+        self.results_frame = ctk.CTkScrollableFrame(main_frame, corner_radius=10)
+        self.results_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+
+    # --- NUEVA FUNCIÓN A PRUEBA DE BALAS ---
+    def load_raw_corpus(self):
+        
+        def robust_csv_reader(file_path):
+            """
+            Lee un CSV malformado línea por línea y lo convierte en un DataFrame.
+            """
+            data_list = []
+            with open(file_path, 'r', encoding='utf-8', errors='replace') as infile:
+                # Usamos el lector de csv de Python, es muy robusto
+                reader = csv.reader(infile, delimiter=',', quotechar='"')
+                
+                # Leemos los encabezados
+                try:
+                    headers = next(reader)
+                    num_columns = len(headers)
+                except StopIteration:
+                    return pd.DataFrame() # Archivo vacío
+
+                # Leemos el resto de las filas
+                for i, row in enumerate(reader):
+                    # Si una fila tiene un número incorrecto de columnas, la ignoramos y avisamos
+                    if len(row) != num_columns:
+                        print(f"ADVERTENCIA: Saltando la fila #{i+2} en '{os.path.basename(file_path)}'. Se esperaban {num_columns} columnas pero se encontraron {len(row)}.")
+                        continue
+                    data_list.append(row)
+            
+            # Creamos el DataFrame de pandas a partir de la lista de datos limpios
+            return pd.DataFrame(data_list, columns=headers)
+
+        data = {}
+        try:
+            print("Cargando corpus raw de Arxiv (modo robusto)...")
+            data['arxiv'] = robust_csv_reader('raw_corpus/arxiv_raw_corpus.csv')
+            
+            print("Cargando corpus raw de Pubmed (modo robusto)...")
+            data['pubmed'] = robust_csv_reader('raw_corpus/pubmed_raw_corpus.csv')
+
+            print("Corpus raw cargados correctamente.")
+
+        except FileNotFoundError as e:
+            messagebox.showerror("Error Crítico", f"No se encontró el archivo de corpus raw: {e.filename}\nLa aplicación no puede continuar.")
+            if self.root: self.root.destroy()
+        except Exception as e:
+            messagebox.showerror("Error Crítico", f"Ocurrió un error al cargar los corpus raw: {e}\nLa aplicación no puede continuar.")
+            if self.root: self.root.destroy()
+        
+        return data
+
+    # ... (El resto de las funciones son idénticas)
     def load_file(self):
         file_path = filedialog.askopenfilename(title="Selecciona un archivo de referencia", filetypes=[("Reference Files", "*.bib *.ris"), ("All files", "*.*")])
         if not file_path: return
@@ -82,38 +139,25 @@ class SimilarityApp:
                 messagebox.showerror("Error", "El archivo de referencia no contiene entradas válidas.")
                 return
             self.bib_data = entries[0]
-            self.update_query_text()
-            self.search_btn.config(state="normal")
+            title_display = self.bib_data.get('title', 'Título no encontrado')
+            self.query_label.configure(text=f"Archivo Cargado: {title_display}")
+            self.search_btn.configure(state="normal")
         except Exception as e:
             messagebox.showerror("Error al leer archivo", f"No se pudo procesar el archivo.\nError: {e}")
             self.bib_data = None
-            self.search_btn.config(state="disabled")
+            self.search_btn.configure(state="disabled")
 
-    def update_query_text(self, event=None):
-        if not self.bib_data: return
-        content_type = self.content_var.get().lower()
-        text_to_display = self.bib_data.get(content_type, f"'{content_type.capitalize()}' no encontrado en el archivo.")
-        self.query_text_area.config(state="normal")
-        self.query_text_area.delete("1.0", tk.END)
-        self.query_text_area.insert("1.0", text_to_display)
-        self.query_text_area.config(state="disabled")
-        self.query_content.set(text_to_display)
-
-    # --- MÉTODO MODIFICADO ---
     def run_search(self):
         if not self.bib_data:
             messagebox.showerror("Error", "No hay ningún archivo cargado.")
             return
 
-        # <<-- CAMBIO CLAVE: CONSTRUIMOS EL TEXTO COMBINADO -->>
-        # Ignoramos la selección del ComboBox y en su lugar combinamos Título y Abstracto,
-        # tal como se hizo al crear los archivos .pkl.
+        for widget in self.results_frame.winfo_children():
+            widget.destroy()
+
         title_text = self.bib_data.get('title', '')
         abstract_text = self.bib_data.get('abstract', '')
-        
-        # Combinamos Título y Abstracto con un espacio en medio
         combined_query_text = f"{title_text} {abstract_text}".strip()
-
         if not combined_query_text:
             messagebox.showwarning("Advertencia", "El título y el abstracto del archivo están vacíos.")
             return
@@ -122,22 +166,56 @@ class SimilarityApp:
         feature = self.feature_var.get()
         vector = self.vector_var.get()
         
-        # Enviamos el texto combinado a la función de similitud
         results = find_similar_documents(combined_query_text, corpus, feature, vector)
 
-        display_text = "No se encontraron resultados o ocurrió un error.\nRevisa la consola para más detalles."
-        if results:
-            display_text = "Ranking | Índice del Documento | Similitud (Coseno)\n"
-            display_text += "="*60 + "\n"
-            for i, (doc_id, score) in enumerate(results):
-                display_text += f"{i+1:<8}| {doc_id:<22} | {score:.6f}\n"
+        if not results:
+            ctk.CTkLabel(self.results_frame, text="No se encontraron resultados o ocurrió un error.").pack(pady=10)
+            return
+
+        for i, (doc_id, score) in enumerate(results):
+            result_entry_frame = ctk.CTkFrame(self.results_frame)
+            result_entry_frame.pack(fill="x", pady=5, padx=5)
+
+            doc_title = self.raw_data[corpus].iloc[doc_id]['Title']
+            
+            label_text = f"{i+1}. Similitud: {score:.4f}\n{doc_title}"
+            
+            ctk.CTkLabel(result_entry_frame, text=label_text, justify="left", wraplength=600).pack(side="left", fill="x", expand=True, padx=10, pady=5)
+            
+            view_button = ctk.CTkButton(result_entry_frame, text="Ver Detalles", width=120,
+                                        command=lambda c=corpus, index=doc_id: self.view_document_details(c, index))
+            view_button.pack(side="right", padx=10, pady=5)
+
+    def view_document_details(self, corpus, index):
+        details_window = ctk.CTkToplevel(self.root)
+        details_window.title("Detalles del Documento")
+        details_window.geometry("700x500")
+
+        try:
+            doc_data = self.raw_data[corpus].iloc[index]
+            
+            details_text = (
+                f"TÍTULO:\n{doc_data.get('Title', 'N/A')}\n\n"
+                f"AUTORES:\n{doc_data.get('Authors', 'N/A')}\n\n"
+                f"DOI:\n{doc_data.get('DOI', 'N/A')}\n\n"
+                f"FECHA:\n{doc_data.get('Date', 'N/A')}\n\n"
+                f"SECCIÓN:\n{doc_data.get('Section', 'N/A')}\n\n"
+                f"ABSTRACT:\n{doc_data.get('Abstract', 'N/A')}"
+            )
+
+            textbox = ctk.CTkTextbox(details_window, wrap="word", font=("Arial", 12))
+            textbox.pack(fill="both", expand=True, padx=10, pady=10)
+            textbox.insert("1.0", details_text)
+            textbox.configure(state="disabled")
+
+        except Exception as e:
+            ctk.CTkLabel(details_window, text=f"No se pudieron cargar los detalles.\nError: {e}").pack(pady=20)
         
-        self.results_text_area.config(state="normal")
-        self.results_text_area.delete("1.0", tk.END)
-        self.results_text_area.insert("1.0", display_text)
-        self.results_text_area.config(state="disabled")
+        details_window.transient(self.root)
+        details_window.grab_set()
+
 
 if __name__ == "__main__":
-    root = tk.Tk()
+    root = ctk.CTk()
     app = SimilarityApp(root)
     root.mainloop()
