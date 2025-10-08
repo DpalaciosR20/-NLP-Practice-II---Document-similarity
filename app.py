@@ -1,15 +1,14 @@
-# app.py (versión con lectura manual de CSV a prueba de balas)
+# app.py (versión final con resultados alineados a la izquierda)
 
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
 import pandas as pd
 import bibtexparser
 import os
-import csv # <--- Importamos el módulo CSV de Python
+import csv
 
 from similarity_calculator import find_similar_documents
 
-# ... (El resto de tu código, como parse_ris_file, es idéntico)
 def parse_ris_file(file_path):
     data = {}
     abstract_keys = ["AB", "N1"]
@@ -24,12 +23,10 @@ def parse_ris_file(file_path):
     if 'abstract' not in data: data['abstract'] = ''
     return [data]
 
-
 class SimilarityApp:
-    # ... (La función __init__ y el resto de la UI son idénticas)
     def __init__(self, root):
         self.root = root
-        self.root.title("Buscador de Artículos Similares v2.2")
+        self.root.title("Buscador de Artículos Similares v3.1")
         self.root.geometry("900x700")
 
         ctk.set_appearance_mode("System")
@@ -70,57 +67,22 @@ class SimilarityApp:
         self.results_frame = ctk.CTkScrollableFrame(main_frame, corner_radius=10)
         self.results_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
-
-    # --- NUEVA FUNCIÓN A PRUEBA DE BALAS ---
     def load_raw_corpus(self):
-        
-        def robust_csv_reader(file_path):
-            """
-            Lee un CSV malformado línea por línea y lo convierte en un DataFrame.
-            """
-            data_list = []
-            with open(file_path, 'r', encoding='utf-8', errors='replace') as infile:
-                # Usamos el lector de csv de Python, es muy robusto
-                reader = csv.reader(infile, delimiter=',', quotechar='"')
-                
-                # Leemos los encabezados
-                try:
-                    headers = next(reader)
-                    num_columns = len(headers)
-                except StopIteration:
-                    return pd.DataFrame() # Archivo vacío
-
-                # Leemos el resto de las filas
-                for i, row in enumerate(reader):
-                    # Si una fila tiene un número incorrecto de columnas, la ignoramos y avisamos
-                    if len(row) != num_columns:
-                        print(f"ADVERTENCIA: Saltando la fila #{i+2} en '{os.path.basename(file_path)}'. Se esperaban {num_columns} columnas pero se encontraron {len(row)}.")
-                        continue
-                    data_list.append(row)
-            
-            # Creamos el DataFrame de pandas a partir de la lista de datos limpios
-            return pd.DataFrame(data_list, columns=headers)
-
         data = {}
         try:
-            print("Cargando corpus raw de Arxiv (modo robusto)...")
-            data['arxiv'] = robust_csv_reader('raw_corpus/arxiv_raw_corpus.csv')
-            
-            print("Cargando corpus raw de Pubmed (modo robusto)...")
-            data['pubmed'] = robust_csv_reader('raw_corpus/pubmed_raw_corpus.csv')
-
+            print("Cargando corpus raw de Arxiv (con separador TAB)...")
+            data['arxiv'] = pd.read_csv('raw_corpus/arxiv_raw_corpus.csv', sep='\t', engine='python')
+            print("Cargando corpus raw de Pubmed (con separador TAB)...")
+            data['pubmed'] = pd.read_csv('raw_corpus/pubmed_raw_corpus.csv', sep='\t', engine='python')
             print("Corpus raw cargados correctamente.")
-
         except FileNotFoundError as e:
             messagebox.showerror("Error Crítico", f"No se encontró el archivo de corpus raw: {e.filename}\nLa aplicación no puede continuar.")
             if self.root: self.root.destroy()
         except Exception as e:
             messagebox.showerror("Error Crítico", f"Ocurrió un error al cargar los corpus raw: {e}\nLa aplicación no puede continuar.")
             if self.root: self.root.destroy()
-        
         return data
 
-    # ... (El resto de las funciones son idénticas)
     def load_file(self):
         file_path = filedialog.askopenfilename(title="Selecciona un archivo de referencia", filetypes=[("Reference Files", "*.bib *.ris"), ("All files", "*.*")])
         if not file_path: return
@@ -174,7 +136,8 @@ class SimilarityApp:
 
         for i, (doc_id, score) in enumerate(results):
             result_entry_frame = ctk.CTkFrame(self.results_frame)
-            result_entry_frame.pack(fill="x", pady=5, padx=5)
+            # --- LA ÚNICA LÍNEA MODIFICADA ---
+            result_entry_frame.pack(fill="x", pady=5, padx=5, anchor="w")
 
             doc_title = self.raw_data[corpus].iloc[doc_id]['Title']
             
@@ -213,7 +176,6 @@ class SimilarityApp:
         
         details_window.transient(self.root)
         details_window.grab_set()
-
 
 if __name__ == "__main__":
     root = ctk.CTk()
